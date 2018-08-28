@@ -18,6 +18,8 @@ defmodule ElixiumNode do
       t ->
         IO.inspect t
     end
+
+    {:noreply, {supervisor, chain}}
   end
 
   def set_supervisor(pid, supervisor) do

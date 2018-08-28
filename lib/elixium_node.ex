@@ -1,21 +1,16 @@
 defmodule ElixiumNode do
   use GenServer
-  alias Elixium.Store.Ledger
-  alias Elixium.Store.Utxo
-  alias Elixium.Blockchain
-  alias Elixium.P2P.Peer
 
-  def start_link do
-    Ledger.initialize()
-    Utxo.initialize()
-    chain = Blockchain.initialize()
-
-    supervisor = Peer.initialize
-    GenServer.start_link(__MODULE__, {supervisor, chain})
+  def start_link(chain) do
+    GenServer.start_link(__MODULE__, chain)
   end
 
-  def init(options) when is_tuple(options) do
-    {:ok, options}
+  def init(chain) when is_list(chain) do
+    {:ok, {chain}}
+  end
+
+  def handle_cast({:set_supervisor, peer_supervisor}, {chain}) do
+    {:noreply, {peer_supervisor, chain}}
   end
 
   def handle_info(msg, {supervisor, chain}) do
@@ -23,5 +18,9 @@ defmodule ElixiumNode do
       t ->
         IO.inspect t
     end
+  end
+
+  def set_supervisor(pid, supervisor) do
+    GenServer.cast(pid, {:set_supervisor, supervisor})
   end
 end

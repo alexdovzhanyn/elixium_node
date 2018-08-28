@@ -15,6 +15,8 @@ defmodule ElixiumNode do
 
   def handle_info(msg, {supervisor, chain}) do
     case msg do
+      header = %{type: "BLOCK_HEADER"} ->
+        IO.puts "matched header"
       block = %{type: "BLOCK"} ->
         IO.inspect block
       _ -> IO.puts "Didnt match"

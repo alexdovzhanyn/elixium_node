@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Node do
 
     {:ok, comm_pid} = ElixiumNode.start_link(chain)
 
-    supervisor = Peer.initialize(comm_pid)
+    supervisor = Peer.initialize(comm_pid, 11111)
 
     ElixiumNode.set_supervisor(comm_pid, supervisor)
 

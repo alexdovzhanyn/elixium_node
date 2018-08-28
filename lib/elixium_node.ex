@@ -15,8 +15,9 @@ defmodule ElixiumNode do
 
   def handle_info(msg, {supervisor, chain}) do
     case msg do
-      t ->
-        IO.inspect t
+      block = %{type: "BLOCK"} ->
+        IO.inspect block
+      _ -> IO.puts "Didnt match"
     end
 
     {:noreply, {supervisor, chain}}

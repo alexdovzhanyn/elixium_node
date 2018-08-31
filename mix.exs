@@ -23,7 +23,7 @@ defmodule ElixiumNode.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:elixium_core, "~> 0.2"}
+      {:elixium_core, "~> 0.2"},
       # {:local_dependency, path: "../core", app: false},
       {:logger_file_backend, "~> 0.0.10"}
     ]

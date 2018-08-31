@@ -28,3 +28,9 @@ use Mix.Config
 # here (which is why it is important to import them last).
 #
 #     import_config "#{Mix.env()}.exs"
+
+config :logger, backends: [:console, {LoggerFileBackend, :info}]
+
+config :logger, :info,
+  path: "./log/info.log",
+  level: :info

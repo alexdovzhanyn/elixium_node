@@ -25,3 +25,4 @@ elixium_node-*.tar
 /.chaindata
 /.peers
 /.utxo
+/log

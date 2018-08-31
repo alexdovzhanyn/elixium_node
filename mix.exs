@@ -6,23 +6,26 @@ defmodule ElixiumNode.MixProject do
       app: :elixium_node,
       version: "0.1.0",
       elixir: "~> 1.7",
-      start_permanent: Mix.env() == :prod,
+      start_permanent: true,
       deps: deps(),
-      default_task: "node"
+      # default_task: "node"
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      mod: {ElixiumNodeApp, []},
+      applications: [:logger]
     ]
   end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:elixium_core, "~> 0.2"}
+      # {:elixium_core, "~> 0.2"}
+      {:local_dependency, path: "../core", app: false},
+      {:logger_file_backend, "~> 0.0.10"}
     ]
   end
 end

@@ -1,11 +1,13 @@
-defmodule Mix.Tasks.Node do
-  use Mix.Task
+defmodule ElixiumNodeApp do
+  use Application
   alias Elixium.Store.Ledger
   alias Elixium.Store.Utxo
   alias Elixium.Blockchain
   alias Elixium.P2P.Peer
 
-  def run(_) do
+  def start(_type, _args) do
+    IO.puts "starting"
+    IO.inspect Application.get_env(:elixium_node, :logger)
     Ledger.initialize()
     Utxo.initialize()
     chain = Blockchain.initialize()
@@ -16,6 +18,6 @@ defmodule Mix.Tasks.Node do
 
     ElixiumNode.set_supervisor(comm_pid, supervisor)
 
-    Process.sleep(:infinity)
+    {:ok, supervisor}
   end
 end

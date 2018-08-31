@@ -5,5 +5,6 @@
   "exleveldb": {:hex, :exleveldb, "0.12.2", "7336156284c94fe4c7eeb1270c69c9d7b59cb852e49e21cd68a2c6a85d87f34e", [:mix], [{:eleveldb, "~> 2.2.20", [hex: :eleveldb, repo: "hexpm", optional: false]}], "hexpm"},
   "jason": {:hex, :jason, "1.1.1", "d3ccb840dfb06f2f90a6d335b536dd074db748b3e7f5b11ab61d239506585eb2", [:mix], [{:decimal, "~> 1.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm"},
   "keccakf1600": {:hex, :keccakf1600, "2.0.0", "69d02d844a101bf3c75484c9e334fd04b0f57280727e881cac3bd8240432f43a", [:rebar3], [], "hexpm"},
+  "logger_file_backend": {:hex, :logger_file_backend, "0.0.10", "876f9f84ae110781207c54321ffbb62bebe02946fe3c13f0d7c5f5d8ad4fa910", [:mix], [], "hexpm"},
   "strap": {:hex, :strap, "0.1.1", "90fedb0b51a1c81678cc1386ed9d3d9e6126ac718af4de2a852d730c0fc6d67f", [:mix], [], "hexpm"},
 }

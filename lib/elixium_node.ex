@@ -10,14 +10,10 @@ defmodule ElixiumNode do
   end
 
   def init(chain) when is_list(chain) do
-    {:ok, {chain}}
+    {:ok, chain}
   end
 
-  def handle_cast({:set_supervisor, peer_supervisor}, {chain}) do
-    {:noreply, {peer_supervisor, chain}}
-  end
-
-  def handle_info(msg, {supervisor, chain}) do
+  def handle_info(msg, chain) do
     chain =
       case msg do
         header = %{type: "BLOCK_HEADER"} ->
@@ -50,7 +46,7 @@ defmodule ElixiumNode do
           chain
       end
 
-    {:noreply, {supervisor, chain}}
+    {:noreply, chain}
   end
 
   def set_supervisor(pid, supervisor) do

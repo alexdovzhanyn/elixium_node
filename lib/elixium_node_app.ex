@@ -14,10 +14,8 @@ defmodule ElixiumNodeApp do
 
     {:ok, comm_pid} = ElixiumNode.start_link(chain)
 
-    supervisor = Peer.initialize(comm_pid)
+    Peer.initialize(comm_pid)
 
-    ElixiumNode.set_supervisor(comm_pid, supervisor)
-
-    {:ok, supervisor}
+    {:ok, self()}
   end
 end

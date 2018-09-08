@@ -6,8 +6,6 @@ defmodule ElixiumNodeApp do
   alias Elixium.P2P.Peer
 
   def start(_type, _args) do
-    IO.puts "starting"
-    IO.inspect Application.get_env(:elixium_node, :logger)
     Ledger.initialize()
     Utxo.initialize()
     chain = Blockchain.initialize()

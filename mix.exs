@@ -7,8 +7,7 @@ defmodule ElixiumNode.MixProject do
       version: "0.1.0",
       elixir: "~> 1.7",
       start_permanent: true,
-      deps: deps(),
-      # default_task: "node"
+      deps: deps()
     ]
   end
 

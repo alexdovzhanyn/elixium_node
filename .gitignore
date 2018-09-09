@@ -26,3 +26,4 @@ elixium_node-*.tar
 /.peers
 /.utxo
 /log
+config/dev.exs

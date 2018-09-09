@@ -12,7 +12,11 @@ defmodule ElixiumNodeApp do
 
     {:ok, comm_pid} = ElixiumNode.start_link(chain)
 
-    Peer.initialize(comm_pid)
+    if port = Application.get_env(:elixium_node, :port) do
+      Peer.initialize(comm_pid, port)
+    else
+      Peer.initialize(comm_pid)
+    end
 
     {:ok, self()}
   end

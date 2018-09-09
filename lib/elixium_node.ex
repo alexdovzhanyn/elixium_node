@@ -48,8 +48,4 @@ defmodule ElixiumNode do
 
     {:noreply, chain}
   end
-
-  def set_supervisor(pid, supervisor) do
-    GenServer.cast(pid, {:set_supervisor, supervisor})
-  end
 end

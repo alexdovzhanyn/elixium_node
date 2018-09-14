@@ -5,6 +5,7 @@ defmodule ElixiumNode do
   alias Elixium.Blockchain
   alias Elixium.Blockchain.Block
   alias Elixium.Store.Ledger
+  alias Elixium.P2P.Peer
 
   def start_link(chain) do
     GenServer.start_link(__MODULE__, {})
@@ -34,6 +35,7 @@ defmodule ElixiumNode do
           :ok ->
             Logger.info("Block #{block.index} valid.")
             Blockchain.add_block(block)
+            Peer.gossip("BLOCK", block)
           err -> Logger.info("Block #{block.index} invalid!")
         end
       _ ->

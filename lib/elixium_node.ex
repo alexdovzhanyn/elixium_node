@@ -20,23 +20,29 @@ defmodule ElixiumNode do
       block = %{type: "BLOCK"} ->
         IO.inspect Block.header(block)
 
-        last_block = Ledger.last_block()
+        case Ledger.block_at_height(block.index) do
+          :none ->
+            last_block = Ledger.last_block()
 
-        difficulty =
-          if rem(block.index, Blockchain.diff_rebalance_offset()) == 0 do
-            new_difficulty = Blockchain.recalculate_difficulty() + last_block.difficulty
-            IO.puts("Difficulty recalculated! Changed from #{last_block.difficulty} to #{new_difficulty}")
-            new_difficulty
-          else
-            last_block.difficulty
-          end
+            difficulty =
+              if rem(block.index, Blockchain.diff_rebalance_offset()) == 0 do
+                new_difficulty = Blockchain.recalculate_difficulty() + last_block.difficulty
+                IO.puts("Difficulty recalculated! Changed from #{last_block.difficulty} to #{new_difficulty}")
+                new_difficulty
+              else
+                last_block.difficulty
+              end
 
-        case Validator.is_block_valid?(block, difficulty) do
-          :ok ->
-            Logger.info("Block #{block.index} valid.")
-            Blockchain.add_block(block)
-            Peer.gossip("BLOCK", block)
-          err -> Logger.info("Block #{block.index} invalid!")
+            case Validator.is_block_valid?(block, difficulty) do
+              :ok ->
+                Logger.info("Block #{block.index} valid.")
+                Blockchain.add_block(block)
+                Peer.gossip("BLOCK", block)
+              err -> Logger.info("Block #{block.index} invalid!")
+            end
+          possible_fork_block ->
+            Logger.info("Already have block with index #{possible_fork_block.index}. Performing block diff...")
+            # TODO: diff blocks
         end
       _ ->
         IO.puts "Didnt match"

@@ -20,6 +20,8 @@ defmodule ElixiumNode do
       block = %{type: "BLOCK"} ->
         IO.inspect Block.header(block)
 
+        # Check if we've already received a block at this index. If we have,
+        # diff it against the one we've stored.
         case Ledger.block_at_height(block.index) do
           :none ->
             last_block = Ledger.last_block()
@@ -40,9 +42,14 @@ defmodule ElixiumNode do
                 Peer.gossip("BLOCK", block)
               err -> Logger.info("Block #{block.index} invalid!")
             end
-          possible_fork_block ->
-            Logger.info("Already have block with index #{possible_fork_block.index}. Performing block diff...")
-            # TODO: diff blocks
+          stored_block ->
+            Logger.info("Already have block with index #{block.index}. Performing block diff...")
+
+            case Block.diff_header(stored_block, block) do
+              [] -> Logger.info("Exact same block. Skipping")
+              diff ->
+                Logger.warn("Fork block received! Checking existing fork pool...")
+            end
         end
       _ ->
         IO.puts "Didnt match"

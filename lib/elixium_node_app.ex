@@ -10,9 +10,9 @@ defmodule ElixiumNodeApp do
     Ledger.initialize()
     Utxo.initialize()
     Orphan.initialize()
-    chain = Blockchain.initialize()
+    Blockchain.initialize()
 
-    {:ok, comm_pid} = ElixiumNode.start_link(chain)
+    {:ok, comm_pid} = ElixiumNode.start_link()
 
     if port = Application.get_env(:elixium_node, :port) do
       Peer.initialize(comm_pid, port)

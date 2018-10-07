@@ -7,6 +7,7 @@ defmodule ElixiumNode do
   alias Elixium.Store.Ledger
   alias Elixium.P2P.Peer
   alias Elixium.Pool.Orphan
+  alias Elixium.Store.Utxo
   require IEx
 
   def start_link do
@@ -146,25 +147,62 @@ defmodule ElixiumNode do
     # same blocks as the fork does.
     {fork_chain, fork_source} = rebuild_fork_chain(block)
 
+    current_utxos_in_pool = Utxo.retrieve_all_utxos()
+
+    # Blocks which need to be reversed
+    blocks_to_reverse =
+      (fork_source.index + 1)..Ledger.last_block().index
+      |> Enum.map(&Ledger.block_at_height/1)
+
+    # Find transaction inputs that need to be reversed
+    all_canonical_transaction_inputs_since_fork =
+      Enum.flat_map(blocks_to_reverse, &parse_transaction_inputs/1)
+
+    canon_output_txoids =
+      blocks_to_reverse
+      |> Enum.flat_map(&parse_transaction_outputs/1)
+      |> Enum.map(& &1.txoid)
+
+    # Pool at the time of fork is basically just current pool plus all inputs
+    # used in canon chain since fork, minus all outputs created in after fork
+    # (this will also remove inputs that were created as outputs and used in
+    # the fork)
+    pool =
+      current_utxos_in_pool ++ all_canonical_transaction_inputs_since_fork
+      |> Enum.filter(&(!Enum.member?(canon_output_txoids, &1.txoid)))
+
     # Traverse the fork chain, making sure each block is valid within its own
     # context.
-    # TODO: Make validation difficulty dynamic
-    {_, validation_results} =
+    {_, final_contextual_pool, validation_results} =
       fork_chain
-      |> Enum.scan({fork_source, []}, fn (block, {last, results}) ->
-        {block, [Validator.is_block_valid?(block, 5.0, last) | results]}
-      end)
+      |> Enum.scan({fork_source, pool, []}, &validate_in_context/2)
       |> List.last()
 
     # Ensure that every block passed validation
-    if Enum.all?(validation_results, &(&1 == :ok)) do
+    if Enum.all?(validation_results, & &1) do
       Logger.info("Candidate fork chain valid. Switching.")
 
-      fork_chain
-      |> Enum.reverse()
-      |> Enum.flat_map(&parse_transaction_inputs/1)
-      |> IO.inspect
-      # TODO: continue this.
+      # Add everything in final_contextual_pool that is not also in current_utxos_in_pool
+      Enum.each(final_contextual_pool -- current_utxos_in_pool, &Utxo.add_utxo/1)
+
+      # Remove everything in current_utxos_in_pool that is not also in final_contextual_pool
+      current_utxos_in_pool -- final_contextual_pool
+      |> Enum.map(& &1.txoid)
+      |> Enum.each(&Utxo.remove_utxo/1)
+
+      # Drop canon chain blocks from the ledger, add them to the orphan pool
+      # in case the chain gets revived by another miner
+      Enum.each(blocks_to_reverse, fn blk ->
+        Orphan.add(blk)
+        Ledger.drop_block(blk)
+      end)
+
+      # Remove fork chain from orphan pool; now it becomes the canon chain,
+      # so we add its blocks to the ledger
+      Enum.each(fork_chain, fn blk ->
+        Ledger.append_block(blk)
+        Orphan.remove(blk)
+      end)
     else
       Logger.info("Evaluated candidate fork chain. Not viable for switch.")
     end
@@ -198,5 +236,40 @@ defmodule ElixiumNode do
     block.transactions
     |> Enum.flat_map(&(&1.inputs))
     |> Enum.map(&(Map.delete(&1, :signature)))
+  end
+
+  @spec parse_transaction_outputs(Block) :: list
+  defp parse_transaction_outputs(block), do: Enum.flat_map(block.transactions, &(&1.outputs))
+
+  defp validate_in_context(block, {last, pool, results}) do
+    # TODO: Make validation difficulty dynamic
+    valid = :ok == Validator.is_block_valid?(block, 5.0, last, &(pool_check(pool, &1)))
+
+    # Update the contextual utxo pool by removing spent inputs and adding
+    # unspent outputs from this block. The following block will use the updated
+    # contextual pool for utxo validation
+    updated_pool =
+      if valid do
+        block_input_txoids =
+          block
+          |> parse_transaction_inputs()
+          |> Enum.map(& &1.txoid)
+
+        block_outputs = parse_transaction_outputs(block)
+
+        Enum.filter(pool ++ block_outputs, &(!Enum.member?(block_input_txoids, &1.txoid)))
+      else
+        pool
+      end
+
+    {block, updated_pool, [valid | results]}
+  end
+
+  @spec pool_check(list, map) :: true | false
+  defp pool_check(pool, utxo) do
+    case Enum.find(pool, false, & &1.txoid == utxo.txoid) do
+      false -> false
+      txo_in_pool -> utxo.amount == txo_in_pool.amount && utxo.addr == txo_in_pool.addr
+    end
   end
 end

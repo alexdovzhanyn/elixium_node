@@ -106,7 +106,6 @@ defmodule ElixiumNode do
         # Is this a fork of the most recent block? If it is, we don't have an orphan
         # chain to build on...
         if Ledger.last_block().index == block.index do
-          # TODO: validate orphan block in context of its chain state before adding it
           Logger.warn("Received fork of current block")
           Orphan.add(block)
         else
@@ -126,7 +125,6 @@ defmodule ElixiumNode do
                   Logger.warn("Received orphan block with no reference to a known block. Dropping orphan")
                 canonical_block ->
                   # This block is a fork of a canonical block.
-                  # TODO: Validate this fork in context of the chain state at this point in time
                   Logger.warn("Fork of canonical block received")
                   Orphan.add(block)
               end
@@ -146,6 +144,19 @@ defmodule ElixiumNode do
     # Rebuild the chain backwards until reaching a point where we agree on the
     # same blocks as the fork does.
     {fork_chain, fork_source} = rebuild_fork_chain(block)
+
+    # Calculate the difficulty that we were looking for at the time of the fork.
+    # First, we need to find the start of the last epoch
+    start_of_last_epoch = fork_source.index - rem(fork_source.index, Blockchain.diff_rebalance_offset())
+
+    difficulty =
+      if start_of_last_epoch >= Blockchain.diff_rebalance_offset() do
+        end_of_prev_epoch = Ledger.block_at_height(start_of_last_epoch)
+        beginning_of_prev_epoch = Ledger.block_at_height(start_of_last_epoch - Blockchain.diff_rebalance_offset())
+        Blockchain.recalculate_difficulty(beginning_of_prev_epoch, end_of_prev_epoch)
+      else
+        fork_source.difficulty
+      end
 
     current_utxos_in_pool = Utxo.retrieve_all_utxos()
 
@@ -173,9 +184,9 @@ defmodule ElixiumNode do
 
     # Traverse the fork chain, making sure each block is valid within its own
     # context.
-    {_, final_contextual_pool, validation_results} =
+    {_, final_contextual_pool, _difficulty, _fork_chain, validation_results} =
       fork_chain
-      |> Enum.scan({fork_source, pool, []}, &validate_in_context/2)
+      |> Enum.scan({fork_source, pool, difficulty, fork_chain, []}, &validate_in_context/2)
       |> List.last()
 
     # Ensure that every block passed validation
@@ -241,30 +252,54 @@ defmodule ElixiumNode do
   @spec parse_transaction_outputs(Block) :: list
   defp parse_transaction_outputs(block), do: Enum.flat_map(block.transactions, &(&1.outputs))
 
-  defp validate_in_context(block, {last, pool, results}) do
-    # TODO: Make validation difficulty dynamic
-    valid = :ok == Validator.is_block_valid?(block, 5.0, last, &(pool_check(pool, &1)))
+  defp validate_in_context(block, {last, pool, difficulty, chain, results}) do
+    difficulty =
+      if rem(block.index, Blockchain.diff_rebalance_offset()) == 0 do
+        # Check first to see if the beginning of this epoch was within the fork.
+        # If not, get the epoch start block from the canonical chain
+        epoch_start =
+          case Enum.find(chain, & &1.index == block.index - Blockchain.diff_rebalance_offset()) do
+            nil -> Ledger.block_at_height(block.index - Blockchain.diff_rebalance_offset())
+            block -> block
+          end
+
+        Blockchain.recalculate_difficulty(epoch_start, block) + last.difficulty
+      else
+        difficulty
+      end
+
+    valid = :ok == Validator.is_block_valid?(block, difficulty, last, &(pool_check(pool, &1)))
 
     # Update the contextual utxo pool by removing spent inputs and adding
     # unspent outputs from this block. The following block will use the updated
     # contextual pool for utxo validation
     updated_pool =
       if valid do
+        # Get a list of this blocks inputs (now that we've deemed it valid)
         block_input_txoids =
           block
           |> parse_transaction_inputs()
           |> Enum.map(& &1.txoid)
 
+        # Get a list of the outputs this block produced
         block_outputs = parse_transaction_outputs(block)
 
+        # Remove all the outputs that were both created and used within this same
+        # block
         Enum.filter(pool ++ block_outputs, &(!Enum.member?(block_input_txoids, &1.txoid)))
       else
         pool
       end
 
-    {block, updated_pool, [valid | results]}
+    {block, updated_pool, difficulty, chain, [valid | results]}
   end
 
+  # Function that gets passed to Validator.is_block_valid?/3, telling it how to
+  # evaluate the pool. We're doing this because by default, the validator uses
+  # the canonical UTXO pool for validation, but when we're processing a potential
+  # fork, we won't have the same exact UTXO pool, so we reconstruct one based on
+  # the fork chain. We then use this pool to verify the existence of a particular
+  # UTXO in the fork chain.
   @spec pool_check(list, map) :: true | false
   defp pool_check(pool, utxo) do
     case Enum.find(pool, false, & &1.txoid == utxo.txoid) do

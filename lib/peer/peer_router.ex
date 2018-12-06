@@ -13,33 +13,42 @@ defmodule ElixiumNode.PeerRouter do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def init(_args), do: {:ok, []}
+  def init(_args), do: {:ok, %{known_transactions: []}}
 
   # Handles recieved blocks
   def handle_info({block = %{type: "BLOCK"}, caller}, state) do
     block = Block.sanitize(block)
 
-    case LedgerManager.handle_new_block(block) do
-      :ok ->
-        # We've received a valid block. We need to stop mining the block we're
-        # currently working on and start mining the new one. We also need to gossip
-        # this block to all the nodes we know of.
-        Logger.info("Received valid block #{block.hash} at index #{:binary.decode_unsigned(block.index)}.")
-        Peer.gossip("BLOCK", block)
+    state =
+      case LedgerManager.handle_new_block(block) do
+        :ok ->
+          # We've received a valid block. We need to stop mining the block we're
+          # currently working on and start mining the new one. We also need to gossip
+          # this block to all the nodes we know of.
+          Logger.info("Received valid block #{block.hash} at index #{:binary.decode_unsigned(block.index)}.")
+          Peer.gossip("BLOCK", block)
+          %{state | known_transactions: state.known_transactions -- [block.transactions]}
 
-      :gossip ->
-        # For one reason or another, we want to gossip this block without
-        # restarting our current block calculation. (Perhaps this is a fork block)
-        Peer.gossip("BLOCK", block)
+        :gossip ->
+          # For one reason or another, we want to gossip this block without
+          # restarting our current block calculation. (Perhaps this is a fork block)
+          Peer.gossip("BLOCK", block)
+          state
 
-      {:missing_blocks, fork_chain} ->
-        # We've discovered a fork, but we can't rebuild the fork chain without
-        # some blocks. Let's request them from our peer.
-        query_block(:binary.decode_unsigned(hd(fork_chain).index) - 1, caller)
+        {:missing_blocks, fork_chain} ->
+          # We've discovered a fork, but we can't rebuild the fork chain without
+          # some blocks. Let's request them from our peer.
+          query_block(:binary.decode_unsigned(hd(fork_chain).index) - 1, caller)
+          state
 
-      :ignore -> :ignore # We already know of this block. Ignore it
-      :invalid -> Logger.info("Recieved invalid block at index #{:binary.decode_unsigned(block.index)}.")
-    end
+        :ignore ->
+          :ignore # We already know of this block. Ignore it
+          state
+
+        :invalid ->
+          Logger.info("Recieved invalid block at index #{:binary.decode_unsigned(block.index)}.")
+          state
+      end
 
     {:noreply, state}
   end
@@ -124,6 +133,8 @@ defmodule ElixiumNode.PeerRouter do
           Peer.gossip("TRANSACTION", transaction)
 
           %{state | known_transactions: [transaction | state.known_transactions]}
+        else
+          state
         end
       else
         Logger.info("Received Invalid Transaction. Ignoring.")

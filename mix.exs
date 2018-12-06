@@ -28,8 +28,7 @@ defmodule ElixiumNode.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:elixium_core, "~> 0.4"},
-      {:elixium_core, path: '../core', app: false},
+      {:elixium_core, "~> 0.4"},
       {:distillery, "~> 2.0"}
     ]
   end

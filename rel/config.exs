@@ -35,6 +35,7 @@ environment :dev do
 end
 
 environment :prod do
+  plugin SetOverlayFilePermissions
   set include_erts: true
   set include_src: false
   set cookie: :"p@|CnzPH9,v[~/lDm,Y:*W>@dq8d:s~b5ofzKc&c1S8]53mj4R!OIQnz@%|Xl&DW"
@@ -44,8 +45,12 @@ environment :prod do
     dropchain: "rel/commands/drop_chain.sh",
     usage: "rel/commands/usage.sh"
   ]
+  set config_providers: [
+    {Toml.Provider, [path: "${RELEASE_ROOT_DIR}/config.toml", transforms: [LoggerLevelTransformer]]}
+  ]
   set overlays: [
-    {:copy, "rel/overlays/run.sh", "run.sh"},
+    {:copy, "rel/overlays/run.sh", "run"},
+    {:copy, "config/defaults.toml", "config.toml"},
   ]
 end
 

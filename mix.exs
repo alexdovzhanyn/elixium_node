@@ -4,7 +4,7 @@ defmodule ElixiumNode.MixProject do
   def project do
     [
       app: :elixium_node,
-      version: "1.0.1",
+      version: "1.1.0",
       elixir: "~> 1.7",
       start_permanent: true,
       deps: deps()
@@ -28,8 +28,11 @@ defmodule ElixiumNode.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:elixium_core, "~> 0.4"},
-      {:distillery, "~> 2.0"}
+      {:elixium_core, "~> 0.5"},
+      {:poison, "~> 3.1"},
+      {:distillery, "~> 2.0"},
+      {:toml, "~> 0.5"},
+      {:logger_file_backend, "~> 0.0.10"}
     ]
   end
 end

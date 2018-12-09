@@ -4,7 +4,7 @@ defmodule ElixiumNode.MixProject do
   def project do
     [
       app: :elixium_node,
-      version: "1.1.0",
+      version: "1.1.1",
       elixir: "~> 1.7",
       start_permanent: true,
       deps: deps()

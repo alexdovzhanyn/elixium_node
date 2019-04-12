@@ -6,7 +6,9 @@ defmodule ElixiumNode.PeerRouter.Supervisor do
   end
 
   def init(_args) do
-    children = [ElixiumNode.PeerRouter]
+    children = [
+      {Pico.Client.Supervisor, {ElixiumNode.PeerRouter}}
+    ]
 
     Supervisor.init(children, strategy: :one_for_one)
   end

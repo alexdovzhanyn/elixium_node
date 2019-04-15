@@ -29,7 +29,6 @@ defmodule ElixiumNode.Router do
       {:missing_blocks, fork_chain} ->
         # We've discovered a fork, but we can't rebuild the fork chain without
         # some blocks. Let's request them from our peer.
-
         Pico.message(conn, "BLOCK_QUERY_REQUEST", %{index: :binary.decode_unsigned(hd(fork_chain).index) - 1})
 
       :invalid ->
@@ -138,6 +137,29 @@ defmodule ElixiumNode.Router do
     Enum.each(peers, fn peer ->
       GenServer.call(:"Elixir.Elixium.Store.PeerOracle", {:save_known_peer, [peer]})
     end)
+  end
+
+  message "NEW_INBOUND_CONNECTION", _ do
+    Pico.message(conn, "PORT_RECONNECTION_QUERY")
+    Pico.message(conn, "PEER_QUERY_REQUEST")
+  end
+
+  message "NEW_OUTBOUND_CONNECTION", _ do
+    # Let's ask our peer for new blocks, if there
+    # are any. We'll ask for all blocks starting from our current index minus
+    # 120 (4 hours worth of blocks before we disconnected) just in case there
+    # was a fork after we disconnected.
+
+    starting_at =
+      case Ledger.last_block() do
+        :err -> 0
+        last_block ->
+          # Current index minus 120 or 1, whichever is greater.
+          max(0, :binary.decode_unsigned(last_block.index) - 120)
+      end
+
+    Pico.message(conn, "BLOCK_BATCH_QUERY_REQUEST", %{starting_at: starting_at})
+    Pico.message(conn, "PEER_QUERY_REQUEST")
   end
 
 end

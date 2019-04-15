@@ -121,7 +121,9 @@ defmodule ElixiumNode.Router do
   end
 
   message "PORT_RECONNECTION_RESPONSE", %{port: port} do
+    ip = String.to_charlist(handler_state.peername)
 
+    Oracle.inquire(:"Elixir.Elixium.Store.PeerOracle", {:save_known_peer, [{ip, port}]})
   end
 
   message "PEER_QUERY_REQUEST", _ do

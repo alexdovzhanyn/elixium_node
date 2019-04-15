@@ -19,7 +19,7 @@ defmodule ElixiumNode.Router do
         Logger.info("Received valid block #{block.hash} at index #{:binary.decode_unsigned(block.index)}.")
         Pico.broadcast("BLOCK", block)
 
-        known_transactions = SharedState.get(:transactions) -- [block.transactions]
+        known_transactions = SharedState.get(:transactions) || [] -- block.transactions
         SharedState.set(:transactions, known_transactions)
 
       :gossip ->
@@ -99,7 +99,7 @@ defmodule ElixiumNode.Router do
 
   message "TRANSACTION", transaction do
     transaction = Transaction.sanitize(transaction)
-    known_transactions = SharedState.get(:transactions)
+    known_transactions = SharedState.get(:transactions) || []
 
     if Validator.valid_transaction?(transaction) do
       if transaction not in known_transactions do

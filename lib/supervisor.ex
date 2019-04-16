@@ -13,7 +13,8 @@ defmodule ElixiumNode.Supervisor do
     peers = Elixium.Store.Peer.find_potential_peers()
 
     children = [
-      {Pico.Client.Supervisor, {ElixiumNode.Router, peers, port, handlers}}
+      {Pico.Client.Supervisor, {ElixiumNode.Router, peers, port, handlers}},
+      Elixium.HostAvailability.Supervisor
     ]
 
     children =
